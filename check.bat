@@ -1,5 +1,7 @@
+@echo off
+
 rd /S /Q "C:/Apex/logs/"
 mkdir "C:/Apex/logs/"
-pushd "C:/Apex/"
+pushd "C:/Apex/binaries/"
 drmemory.exe -brief -logdir C:/Apex/logs/ -- Apex.exe
 popd
