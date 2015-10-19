@@ -64,6 +64,17 @@ InputHandler::process(const float time) {
                 switch (event->key.code) {
                     case sf::Keyboard::Escape: {
                         mEscapePressed = true;
+                        Debug::log("InputHandler::process | escaped button pressed");
+                    } break;
+
+                    case sf::Keyboard::Left: {
+                        mLeftArrowPressed = true;
+                        Debug::log("InputHandler::process | left arrow button pressed");
+                    } break;
+
+                    case sf::Keyboard::Right: {
+                        mRightArrowPressed = true;
+                        Debug::log("InputHandler::process | right arrow button pressed");
                     } break;
                 }
             } break;
@@ -72,6 +83,17 @@ InputHandler::process(const float time) {
                 switch (event->key.code) {
                     case sf::Keyboard::Escape: {
                         mEscapePressed = false;
+                        Debug::log("InputHandler::process | escaped button released");
+                    } break;
+
+                    case sf::Keyboard::Left: {
+                        mLeftArrowPressed = false;
+                        Debug::log("InputHandler::process | left arrow button released");
+                    } break;
+
+                    case sf::Keyboard::Right: {
+                        mRightArrowPressed = false;
+                        Debug::log("InputHandler::process | right arrow button released");
                     } break;
                 }
             } break;

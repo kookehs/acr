@@ -4,6 +4,7 @@
 #include <SFML/Graphics/Sprite.hpp>
 #include <string>
 
+#include "Apex/System/Debug.hpp"
 #include "Apex/Window/WindowHandler.hpp"
 
 WindowHandler::WindowHandler() {
@@ -36,6 +37,7 @@ WindowHandler::windowClear(const sf::Color& color) {
 
 void
 WindowHandler::windowClose() {
+    Debug::log("WindowHandler::windowClose | window is closing");
     mRenderWindow->close();
 }
 
