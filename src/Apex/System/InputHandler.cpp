@@ -20,6 +20,9 @@ InputHandler::InputHandler(WindowHandler* const handler) {
     mRightArrowPressed = false;
 }
 
+InputHandler::~InputHandler() {
+}
+
 const bool
 InputHandler::escapePressed() const {
     return mEscapePressed;
@@ -52,16 +55,16 @@ InputHandler::leftArrowPressed(const bool status) {
 
 void
 InputHandler::process(const float time) {
-    sf::Event* event = new sf::Event();
+    sf::Event event;
 
-    while (mWindowHandler->windowEvent(event)) {
-        switch (event->type) {
+    while (mWindowHandler->pollEvent(&event)) {
+        switch (event.type) {
             case sf::Event::Closed: {
-                mWindowHandler->windowClose();
+                mWindowHandler->close();
             } break;
 
             case sf::Event::KeyPressed: {
-                switch (event->key.code) {
+                switch (event.key.code) {
                     case sf::Keyboard::Escape: {
                         mEscapePressed = true;
                         Debug::log("InputHandler::process | escaped button pressed");
@@ -80,7 +83,7 @@ InputHandler::process(const float time) {
             } break;
 
             case sf::Event::KeyReleased: {
-                switch (event->key.code) {
+                switch (event.key.code) {
                     case sf::Keyboard::Escape: {
                         mEscapePressed = false;
                         Debug::log("InputHandler::process | escaped button released");
@@ -99,8 +102,6 @@ InputHandler::process(const float time) {
             } break;
         }
     }
-
-    delete event;
 }
 
 const bool

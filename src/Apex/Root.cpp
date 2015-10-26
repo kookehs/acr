@@ -15,7 +15,6 @@
 
 #include "Apex/Root.hpp"
 #include "Apex/System/Debug.hpp"
-#include "Apex/System/Handlers.hpp"
 #include "Apex/System/InputHandler.hpp"
 #include "Apex/System/Miscellaneous.hpp"
 #include "Apex/Window/WindowHandler.hpp"
@@ -33,12 +32,7 @@ Root::Root() {
 }
 
 Root::~Root() {
-    delete mCurrentImage;
-    delete mCurrentSprite;
-    delete mCurrentTexture;
-    delete mHandlers;
     delete mHttpClient;
-    delete mTimePerFrame;
 }
 
 const std::string&
@@ -52,62 +46,66 @@ Root::applicationTitle(const std::string& title) {
 }
 
 const std::string&
-Root::comicURL() const {
-    return mComicURL;
+Root::comicURI() const {
+    return mComicURI;
 }
 
 void
-Root::comicURL(const std::string& url) {
-    mComicURL = url;
+Root::comicURI(const std::string& uri) {
+    mComicURI = uri;
+}
+
+std::string
+Root::computePageURI(const char offset) {
+    // TODO(kookehs): Check for last pages
+    size_t dotIndex = mCurrentPageURI.find_last_of(".", mCurrentPageURI.length());
+    std::string prefix = mCurrentPageURI.substr(0, dotIndex - 3);
+    std::string suffix = mCurrentPageURI.substr(dotIndex, mCurrentPageURI.length());
+    std::string currentPageNumber = mCurrentPageURI.substr(dotIndex - 3, 3);
+    std::string followingPageNumber = std::to_string(std::stoi(currentPageNumber) + offset);
+    size_t nextPageLength = followingPageNumber.length();
+    for (size_t i = 0; i < 3 - nextPageLength; ++i) followingPageNumber = "0" + followingPageNumber;
+
+    return prefix + followingPageNumber + suffix;
 }
 
 const std::string&
-Root::currentComicURL() const {
-    return mCurrentComicURL;
+Root::currentPageURI() const {
+    return mCurrentPageURI;
 }
 
 void
-Root::currentComicURL(const std::string& url) {
-    mCurrentComicURL = url;
-}
-
-const sf::Image* const
-Root::currentImage() const {
-    return mCurrentImage;
+Root::currentPageURI(const std::string& uri) {
+    mCurrentPageURI = uri;
 }
 
 void
-Root::currentImage(sf::Image* const image) {
-    mCurrentImage = image;
-}
-
-const sf::Sprite* const
-Root::currentSprite() const {
-    return mCurrentSprite;
-}
-
-void
-Root::currentSprite(sf::Sprite* const sprite) {
-    mCurrentSprite = sprite;
-}
-
-const sf::Texture* const
-Root::currentTexture() const {
-    return mCurrentTexture;
+Root::displayNextPage() {
+    mImageContainer.at(0) = mImageContainer.at(1);
+    mImageContainer.at(1) = mImageContainer.at(2);
+    mSpriteContainer.at(0) = mSpriteContainer.at(1);
+    mSpriteContainer.at(1) = mSpriteContainer.at(2);
+    mTextureContainer.at(0) = mTextureContainer.at(1);
+    mTextureContainer.at(1) = mTextureContainer.at(2);
 }
 
 void
-Root::currentTexture(sf::Texture* const texture) {
-    mCurrentTexture = texture;
+Root::displayPreviousPage() {
+    mImageContainer.at(2) = mImageContainer.at(1);
+    mImageContainer.at(1) = mImageContainer.at(0);
+    mSpriteContainer.at(2) = mSpriteContainer.at(1);
+    mSpriteContainer.at(1) = mSpriteContainer.at(0);
+    mTextureContainer.at(2) = mTextureContainer.at(1);
+    mTextureContainer.at(1) = mTextureContainer.at(0);
 }
 
-const Handlers* const
+const Handlers&
 Root::handlers() const {
     return mHandlers;
 }
 
 void
-Root::handlers(Handlers* const handlers) {
+Root::handlers(const Handlers& handlers) {
     mHandlers = handlers;
 }
 
@@ -121,104 +119,144 @@ Root::httpClient(sf::Http* const client) {
     mHttpClient = client;
 }
 
-const sf::Http::Request* const
+const sf::Http::Request&
 Root::httpRequest() const {
     return mHttpRequest;
 }
 
 void
-Root::httpRequest(sf::Http::Request* const request) {
+Root::httpRequest(const sf::Http::Request& request) {
     mHttpRequest = request;
 }
+
+const std::vector<sf::Image>&
+Root::imageContainer() const {
+    return mImageContainer;
+}
+
+void
+Root::imageContainer(const std::vector<sf::Image>& container) {
+    mImageContainer = container;
+}
+
 void
 Root::initialize() {
     auto& dataAtlas = Miscellaneous::loadFromFile("C:/Apex/Data/Config.ini");
     // TODO(kookehs): Disable debug mode in release version
     Debug::debugMode(std::stoi(dataAtlas.at("DebugMode")));
-    mComicURL = dataAtlas.at("ComicURL");
+    mComicURI = dataAtlas.at("ComicURI");
     mServerURL = dataAtlas.at("ServerURL");
 
     mApplicationTitle = "Project Apex";
-    mHandlers = new Handlers();
-    mHandlers->windowHandler(new WindowHandler());
-    mHandlers->inputHandler(new InputHandler(mHandlers->windowHandler()));
+    mHandlers.windowHandler(new WindowHandler());
+    mHandlers.inputHandler(new InputHandler(mHandlers.windowHandler()));
 
-    mTimePerFrame = new sf::Time();
-    *mTimePerFrame = sf::seconds(1.0f / std::stoi(dataAtlas.at("FrameRate")));
+    mTimePerFrame = sf::seconds(1.0f / std::stoi(dataAtlas.at("FrameRate")));
 
     unsigned int windowHeight = std::stoi(dataAtlas.at("WindowHeight"));
     unsigned int windowWidth = std::stoi(dataAtlas.at("WindowWidth"));
     // TODO(kookehs): Check whether sf::Style::Resize works as intended on Windows 10
-    mHandlers->windowHandler()->windowCreate({windowWidth, windowHeight}, mApplicationTitle, sf::Style::Close);
+    mHandlers.windowHandler()->create({windowWidth, windowHeight}, mApplicationTitle, sf::Style::Close);
 
-    mCurrentImage = new sf::Image();
-    mCurrentSprite = new sf::Sprite();
-    mCurrentTexture = new sf::Texture();
     mHttpClient = new sf::Http(mServerURL);
-    mHttpRequest = new sf::Http::Request();
-    mHttpRequest->setMethod(sf::Http::Request::Get);
-    mHttpRequest->setUri(mComicURL);
-    mCurrentComicURL = mComicURL;
+    mHttpRequest.setMethod(sf::Http::Request::Get);
+    mHttpRequest.setUri(mComicURI);
+    mCurrentPageURI = mComicURI;
 
-    // There are 2 uninitialized accesses cause by the following line
-    sf::Http::Response response = mHttpClient->sendRequest(*mHttpRequest);
+    loadPage(Page::Current);
+    loadPage(Page::Next);
+    loadPage(Page::Previous);
+}
 
-    if (response.getStatus() == sf::Http::Response::Ok) {
+void
+Root::loadPage(const char offset) {
+    if (offset < -1 || offset > 1) return;
+    std::string followingPageURI = computePageURI(offset);
+    mHttpRequest.setUri(followingPageURI);
+    sf::Http::Response followingPageResponse = mHttpClient->sendRequest(mHttpRequest);
+
+    if (followingPageResponse.getStatus() == sf::Http::Response::Ok) {
         Debug::log("Response OK");
-        std::string body = response.getBody();
-        mCurrentImage->loadFromMemory(body.c_str(), body.length());
-        mCurrentTexture->loadFromImage(*mCurrentImage, sf::IntRect(0 , 0, 1600, 900));
-        mCurrentSprite->setTexture(*mCurrentTexture);
-        Debug::log("Image loaded from memory");
+        std::string body = followingPageResponse.getBody();
+        sf::Image followingPageImage;
+        followingPageImage.loadFromMemory(body.c_str(), body.length());
+        sf::Vector2u windowSize = mHandlers.windowHandler()->size();
+        sf::Texture followingPageTexture;
+        followingPageTexture.loadFromImage(followingPageImage, sf::IntRect(0, 0, windowSize.x, windowSize.y));
+        sf::Sprite followingPageSprite;
+        followingPageSprite.setTexture(followingPageTexture);
+
+        if (offset == -1) {
+            mPreviousPageURI = followingPageURI;
+            mImageContainer.at(0) = followingPageImage;
+            mSpriteContainer.at(0) = followingPageSprite;
+            mTextureContainer.at(0) = followingPageTexture;
+        } else if (offset == 0) {
+            mCurrentPageURI = followingPageURI;
+            mImageContainer.at(1) = followingPageImage;
+            mSpriteContainer.at(1) = followingPageSprite;
+            mTextureContainer.at(1) = followingPageTexture;
+        } else if (offset == 1) {
+            mNextPageURI = followingPageURI;
+            mImageContainer.at(2) = followingPageImage;
+            mSpriteContainer.at(2) = followingPageSprite;
+            mTextureContainer.at(2) = followingPageTexture;
+        }
     } else {
+        // TODO(kookehs): Display an error
         Debug::log("Response BAD");
     }
 }
 
+const std::string&
+Root::nextPageURI() const {
+    return mNextPageURI;
+}
+
 void
-Root::loadNextPage(const std::string& current) {
-    // TODO(kookehs): Handle pages with increasing number of digits
-    size_t dotIndex = mCurrentComicURL.find_last_of(".", mCurrentComicURL.length());
-    std::string currentPageNumbera = mCurrentComicURL.substr(dotIndex - 3, 3);
-    Debug::log(currentPageNumbera);
-    char currentPageNumber = mCurrentComicURL[dotIndex - 1];
-    char nextPageNumber = currentPageNumber + 1;
-    mCurrentComicURL.at(dotIndex - 1) = nextPageNumber;
+Root::nextPageURI(const std::string& uri) {
+    mNextPageURI = uri;
+}
 
-    mHttpRequest->setUri(mCurrentComicURL);
-    sf::Http::Response nextPageResponse = mHttpClient->sendRequest(*mHttpRequest);
+const std::string&
+Root::previousPageURI() const {
+    return mPreviousPageURI;
+}
 
-    if (nextPageResponse.getStatus() == sf::Http::Response::Ok) {
-        Debug::log("Response OK");
-        std::string body = nextPageResponse.getBody();
-        mCurrentImage->loadFromMemory(body.c_str(), body.length());
-        sf::Vector2u windowSize = mHandlers->windowHandler()->windowSize();
-        mCurrentTexture->loadFromImage(*mCurrentImage, sf::IntRect(0 , 0, windowSize.x, windowSize.y));
-        mCurrentSprite->setTexture(*mCurrentTexture);
-    } else {
-        Debug::log("Response BAD");
-    }
+void
+Root::previousPageURI(const std::string& uri) {
+    mPreviousPageURI = uri;
 }
 
 void
 Root::run() {
+    // TODO(kookehs): Consider event-based rendering
     sf::Clock timer;
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
-    while (mHandlers->windowHandler()->windowIsOpen()) {
+    while (mHandlers.windowHandler()->isOpen()) {
         sf::Time deltaTime = timer.restart();
         timeSinceLastUpdate += deltaTime;
 
-        while (timeSinceLastUpdate > *mTimePerFrame) {
-            timeSinceLastUpdate -= *mTimePerFrame;
-            mHandlers->inputHandler()->process(mTimePerFrame->asSeconds());
-            if (mHandlers->inputHandler()->escapePressed() == true) mHandlers->windowHandler()->windowClose();
-            if (mHandlers->inputHandler()->rightArrowPressed() == true) loadNextPage(mCurrentComicURL);
+        while (timeSinceLastUpdate > mTimePerFrame) {
+            timeSinceLastUpdate -= mTimePerFrame;
+            mHandlers.inputHandler()->process(mTimePerFrame.asSeconds());
+            if (mHandlers.inputHandler()->escapePressed() == true) mHandlers.windowHandler()->close();
+
+            if (mHandlers.inputHandler()->leftArrowPressed() == true) {
+                displayPreviousPage();
+                loadPage(Page::Previous);
+            }
+
+            if (mHandlers.inputHandler()->rightArrowPressed() == true) {
+                displayNextPage();
+                loadPage(Page::Next);
+            }
         }
 
-        mHandlers->windowHandler()->windowClear(sf::Color::Black);
-        mHandlers->windowHandler()->windowDraw(*mCurrentSprite);
-        mHandlers->windowHandler()->windowDisplay();
+        mHandlers.windowHandler()->clear(sf::Color::Black);
+        mHandlers.windowHandler()->draw(mSpriteContainer.at(1));
+        mHandlers.windowHandler()->display();
     }
 }
 
@@ -232,12 +270,32 @@ Root::serverURL(const std::string& url) {
     mServerURL = url;
 }
 
-const sf::Time* const
+const std::vector<sf::Sprite>&
+Root::spriteContainer() const {
+    return mSpriteContainer;
+}
+
+void
+Root::spriteContainer(const std::vector<sf::Sprite>& container) {
+    mSpriteContainer = container;
+}
+
+const std::vector<sf::Texture>&
+Root::textureContainer() const {
+    return mTextureContainer;
+}
+
+void
+Root::textureContainer(const std::vector<sf::Texture>& container) {
+    mTextureContainer = container;
+}
+
+const sf::Time&
 Root::timePerFrame() const {
     return mTimePerFrame;
 }
 
 void
-Root::timePerFrame(sf::Time* const time) {
+Root::timePerFrame(const sf::Time& time) {
     mTimePerFrame = time;
 }

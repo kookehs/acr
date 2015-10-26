@@ -3,6 +3,8 @@
 #ifndef WINDOWHANDLER_HPP
 #define WINDOWHANDLER_HPP
 
+#include <SFML/Graphics/RenderWindow.hpp>
+
 #include <string>
 
 namespace sf {
@@ -29,8 +31,8 @@ class WindowHandler {
     ////////////////
     // Accessors
     ////////////////
-    const sf::RenderWindow* const renderWindow() const;
-    const sf::Vector2u& windowSize() const;
+    const sf::RenderWindow& const renderWindow() const;
+    const sf::Vector2u& size() const;
 
     ////////////////
     // Mutators
@@ -39,22 +41,21 @@ class WindowHandler {
     ////////////////
     // Functions
     ////////////////
-    void initialize();
-    void windowClear();
-    void windowClear(const sf::Color& color);
-    void windowClose();
-    void windowCreate(const sf::VideoMode& mode, const std::string& title, sf::Uint32 style);
-    void windowDisplay();
-    void windowDraw(const sf::Sprite& sprite);
-    bool windowEvent(sf::Event* const event);
-    bool windowIsOpen();
-    void windowView(const sf::View& view);
+    void clear();
+    void clear(const sf::Color& color);
+    void close();
+    void create(const sf::VideoMode& mode, const std::string& title, sf::Uint32 style);
+    void display();
+    void draw(const sf::Sprite& sprite);
+    bool isOpen();
+    bool pollEvent(sf::Event* const event);
+    void view(const sf::View& view);
 
  private:
     ////////////////
     // Member Data
     ////////////////
-    sf::RenderWindow* mRenderWindow;
+    sf::RenderWindow mRenderWindow;
 };
 
 #endif

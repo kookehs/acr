@@ -12,7 +12,7 @@ class InputHandler {
     ////////////////
     InputHandler();
     explicit InputHandler(WindowHandler* const handler);
-    ~InputHandler() = default;
+    ~InputHandler();
 
     ////////////////
     // Accessors
